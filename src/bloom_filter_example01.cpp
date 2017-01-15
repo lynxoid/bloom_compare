@@ -28,79 +28,63 @@
 
 #include <iostream>
 #include <string>
+#include <chrono>
+#include <vector>
+#include <unordered_set>
+#include <memory>
 
-#include "bloom_filter.hpp"
+#include "partow/bloom_filter.hpp"
+#include "definitions.hpp"
+#include "io.hpp"
 
-int main()
-{
+int main(int argc, char * argv[]) {
+    cerr << "===============================" << endl;
+    cerr << "Testing Partow Bloom Filter" << endl;
+    cerr << "===============================" << endl;
 
-   bloom_parameters parameters;
+    string input_fasta = argv[1];
+    int K = stoi(argv[2]);
+    cerr << "Counting kmers" << endl;
+    shared_ptr<unordered_set<kmer_t>> read_kmers = parseAndCount(input_fasta, 20);
+    cerr << "Input kmers: " << read_kmers->size() << endl;
 
-   // How many elements roughly do we expect to insert?
-   parameters.projected_element_count = 1000;
+    bloom_parameters parameters;
+    // How many elements roughly do we expect to insert?
+    parameters.projected_element_count = 10000000;
+    // Maximum tolerable false positive probability? (0,1)
+    parameters.false_positive_probability = 0.01; // 1 in 100
+    // Simple randomizer (optional)
+    parameters.random_seed = 0xA5A5A5A5;
+    if (!parameters) {
+        std::cout << "Error - Invalid set of bloom filter parameters!" << std::endl;
+        return 1;
+    }
+    parameters.compute_optimal_parameters();
+    //Instantiate Bloom Filter
+    bloom_filter filter(parameters);
 
-   // Maximum tolerable false positive probability? (0,1)
-   parameters.false_positive_probability = 0.0001; // 1 in 10000
+    // Insert into Bloom Filter
+    {
+        auto start = std::chrono::system_clock::now();
+        // Insert some strings
+        for (auto kmer : *read_kmers) {
+            filter.insert(kmer);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        cerr << "insertion: " << elapsed_seconds.count() << "s" << endl;
+    }
 
-   // Simple randomizer (optional)
-   parameters.random_seed = 0xA5A5A5A5;
-
-   if (!parameters)
-   {
-      std::cout << "Error - Invalid set of bloom filter parameters!" << std::endl;
-      return 1;
-   }
-
-   parameters.compute_optimal_parameters();
-
-   //Instantiate Bloom Filter
-   bloom_filter filter(parameters);
-
-   std::string str_list[] = { "AbC", "iJk", "XYZ" };
-
-   // Insert into Bloom Filter
-   {
-      // Insert some strings
-      for (std::size_t i = 0; i < (sizeof(str_list) / sizeof(std::string)); ++i)
-      {
-         filter.insert(str_list[i]);
-      }
-
-      // Insert some numbers
-      for (std::size_t i = 0; i < 100; ++i)
-      {
-         filter.insert(i);
-      }
-   }
-
-   // Query Bloom Filter
-   {
-      // Query the existence of strings
-      for (std::size_t i = 0; i < (sizeof(str_list) / sizeof(std::string)); ++i)
-      {
-         filter.contains(str_list[i]);
-      }
-
-      // Query the existence of numbers
-      for (std::size_t i = 0; i < 100; ++i)
-      {
-         filter.contains(i);
-      }
-
-      std::string invalid_str_list[] = { "AbCX", "iJkX", "XYZX" };
-
-      // Query the existence of invalid strings
-      for (std::size_t i = 0; i < (sizeof(invalid_str_list) / sizeof(std::string)); ++i)
-      {
-         filter.contains(invalid_str_list[i]);
-      }
-
-      // Query the existence of invalid numbers
-      for (int i = -1; i > -100; --i)
-      {
-         filter.contains(i);
-      }
-   }
-
-   return 0;
+    shared_ptr<vector<kmer_t>> query_kmers = select_query_set(read_kmers, 1000000);
+    // Query Bloom Filter
+    {
+        auto start = std::chrono::system_clock::now();
+        // Query the existence of strings
+        for (const kmer_t kmer : *query_kmers) {
+            filter.contains(kmer);
+        }
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        cerr << "query for 1mln kmers (50% TP, 50% FP): " << elapsed_seconds.count() << "s " << endl;
+    }
 }
