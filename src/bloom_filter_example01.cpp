@@ -78,19 +78,13 @@ int main()
       // Query the existence of strings
       for (std::size_t i = 0; i < (sizeof(str_list) / sizeof(std::string)); ++i)
       {
-         if (filter.contains(str_list[i]))
-         {
-            std::cout << "BF contains: " << str_list[i] << std::endl;
-         }
+         filter.contains(str_list[i]);
       }
 
       // Query the existence of numbers
       for (std::size_t i = 0; i < 100; ++i)
       {
-         if (filter.contains(i))
-         {
-            std::cout << "BF contains: " << i << std::endl;
-         }
+         filter.contains(i);
       }
 
       std::string invalid_str_list[] = { "AbCX", "iJkX", "XYZX" };
@@ -98,19 +92,13 @@ int main()
       // Query the existence of invalid strings
       for (std::size_t i = 0; i < (sizeof(invalid_str_list) / sizeof(std::string)); ++i)
       {
-         if (filter.contains(invalid_str_list[i]))
-         {
-            std::cout << "BF falsely contains: " << invalid_str_list[i] << std::endl;
-         }
+         filter.contains(invalid_str_list[i]);
       }
 
       // Query the existence of invalid numbers
       for (int i = -1; i > -100; --i)
       {
-         if (filter.contains(i))
-         {
-            std::cout << "BF falsely contains: " << i << std::endl;
-         }
+         filter.contains(i);
       }
    }
 
